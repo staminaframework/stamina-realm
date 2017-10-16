@@ -1,0 +1,2 @@
+Export-Package: io.staminaframework.realm, io.staminaframework.realm.spi, org.osgi.service.useradmin
+Import-Package: !org.apache.felix.utils.properties, *
