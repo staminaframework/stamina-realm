@@ -41,14 +41,7 @@ public interface PasswordHasher {
      * @param user     user name (may be used for creating a custom salt for the hashed password)
      * @param password input password to hash
      * @return hashed password with a prefix, <code>null</code> if this operation failed for some reasons
+     * @throws Exception if password hashing failed
      */
-    String hash(String user, String password);
-
-    /**
-     * Get user salt used when hashing passwords.
-     *
-     * @param user user related salt
-     * @return user salt, <code>null</code> if none
-     */
-    byte[] salt(String user);
+    String hash(String user, String password) throws Exception;
 }

@@ -206,7 +206,7 @@ public class RealmIT {
     @Test
     public void testPasswordHasherServiceRanking() {
         final ServiceReference<PasswordHasher> ref = bundleContext.getServiceReference(PasswordHasher.class);
-        assertEquals("sha256", ref.getProperty(PasswordHasher.HASH_TYPE));
+        assertEquals("pbkdf2", ref.getProperty(PasswordHasher.HASH_TYPE));
     }
 
     @Test
@@ -249,7 +249,7 @@ public class RealmIT {
 
         user = userAdmin.getUser(RealmConstants.UID, "john");
         assertNotEquals("changeme", user.getCredentials().get(RealmConstants.PASSWORD));
-        assertTrue(((String) user.getCredentials().get(RealmConstants.PASSWORD)).startsWith("sha256:"));
+        assertTrue(((String) user.getCredentials().get(RealmConstants.PASSWORD)).startsWith("pbkdf2:"));
 
         final UserSession session = userSessionAdmin.authenticate("john", "changeme");
         assertNotNull(session);
@@ -261,7 +261,7 @@ public class RealmIT {
         user.getCredentials().put(RealmConstants.PASSWORD, plainTextPassword("changeme"));
 
         final Bundle realmBundle = lookupBundle(bundleContext, "io.staminaframework.realm");
-        final File saltFile = realmBundle.getDataFile("salt-sha256-john.dat");
+        final File saltFile = realmBundle.getDataFile("salt-pbkdf2-john.dat");
         assertTrue(saltFile.exists());
 
         assertTrue(userAdmin.removeRole("john"));
@@ -270,7 +270,7 @@ public class RealmIT {
     }
 
     @Test
-    public void testHashPassword() {
+    public void testHashPassword() throws Exception {
         final PasswordHasher hasher = lookupService(bundleContext, PasswordHasher.class);
         final String pwd1 = hasher.hash("john", "randompassword");
         final String pwd2 = hasher.hash("john", "randompassword");

@@ -28,15 +28,8 @@ import org.osgi.service.component.annotations.Component;
 @Component(service = PasswordHasher.class,
         property = {PasswordHasher.HASH_TYPE + "=plaintext", Constants.SERVICE_RANKING + ":Integer=0"})
 public class PlainTextPasswordHasher implements PasswordHasher {
-    private static final byte[] EMPTY_SALT = new byte[0];
-
     @Override
     public String hash(String user, String password) {
         return password;
-    }
-
-    @Override
-    public byte[] salt(String user) {
-        return EMPTY_SALT;
     }
 }

@@ -60,6 +60,16 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin, UserRe
         EVENT_TYPES.put(UserSession.ROLE_LOGGED_OUT, "ROLE_LOGGED_OUT");
     }
 
+    private static class HashedPassword {
+        public final String password;
+        public final String hasher;
+
+        public HashedPassword(final String password, final String hasher) {
+            this.password = password;
+            this.hasher = hasher;
+        }
+    }
+
     /**
      * {@link UserSessionAdmin} component configuration.
      */
@@ -74,12 +84,18 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin, UserRe
          * When the file is updated, user realm is reloaded.
          */
         boolean monitorUserRealm() default true;
+
+        /**
+         * Set preferred password hasher to use.
+         */
+        String preferredPasswordHasher() default "pbkdf2";
     }
 
     private Properties userDb;
     private File userRealmFile;
     private ThreadPoolExecutor eventDispatcher;
     private UserRealmFileMonitor userRealmFileMonitor;
+    private String preferredPasswordHasher;
 
     private BundleContext bundleContext;
     private ServiceReference<?> serviceRef;
@@ -90,6 +106,8 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin, UserRe
 
     @Activate
     public void activate(ComponentContext componentContext, BundleContext bundleContext, Config config) throws IOException {
+        preferredPasswordHasher = config.preferredPasswordHasher();
+
         eventDispatcher = new ThreadPoolExecutor(1, 1, 10, TimeUnit.SECONDS,
                 new LinkedBlockingDeque<>(), task -> {
             final Thread t = new Thread(task, "UserAdmin Event Dispatcher");
@@ -199,24 +217,12 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin, UserRe
         // Write new user definition.
         final StringBuilder newUserDef = new StringBuilder(32);
         if (newPassword != null) {
-            final int i = newPassword.indexOf(':');
-            if (i == -1) {
-                // This is a plain text password:
-                // we must hash it to protect user security.
-                final ServiceReference<PasswordHasher> hasherRef =
-                        bundleContext.getServiceReference(PasswordHasher.class);
-                if (hasherRef != null) {
-                    logService.log(LogService.LOG_INFO, "Hashing password for user: " + userId);
-                    try {
-                        final PasswordHasher hasher = bundleContext.getService(hasherRef);
-                        final String hashedPassword = hasher.hash(userId, newPassword);
-                        newUserDef.append(hashedPassword);
-                    } finally {
-                        bundleContext.ungetService(hasherRef);
-                    }
-                }
-            } else {
-                newUserDef.append(newPassword);
+            logService.log(LogService.LOG_INFO, "Hashing password for user: " + userId);
+            try {
+                final HashedPassword hp = hashUserPassword(userId, newPassword, null);
+                newUserDef.append(hp.hasher).append(':').append(hp.password);
+            } catch (Exception e) {
+                logService.log(LogService.LOG_ERROR, "Failed to hash password for user: " + userId, e);
             }
         }
         newUserDef.append(",");
@@ -376,39 +382,20 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin, UserRe
                         credentialsOk[i] = true;
                     } else {
                         final String inputPassword = (String) credential;
+                        final String hasherType;
                         final int index = storedPassword.indexOf(':');
-                        final String storedPasswordType;
                         if (index == -1) {
-                            storedPasswordType = "plaintext";
+                            hasherType = "plaintext";
                         } else {
-                            // Extract password type.
-                            storedPasswordType = storedPassword.substring(0, index);
+                            hasherType = storedPassword.substring(0, index);
                         }
-
-                        // Find a hasher for this password type.
-                        final Collection<ServiceReference<PasswordHasher>> refs;
                         try {
-                            refs = bundleContext.getServiceReferences(PasswordHasher.class,
-                                    "(" + PasswordHasher.HASH_TYPE + "=" + storedPasswordType + ")");
-                        } catch (InvalidSyntaxException ignore) {
-                            break;
-                        }
-                        for (final ServiceReference<PasswordHasher> ref : refs) {
-                            try {
-                                logService.log(LogService.LOG_DEBUG,
-                                        "Hashing password for user " + userId
-                                                + " using hash algorithm: " + storedPasswordType);
-                                // Hash input password, and compare results.
-                                final PasswordHasher ph = bundleContext.getService(ref);
-                                final String hashed = ph.hash(userId, inputPassword);
-                                credentialsOk[i] = hashed.equals(storedPassword);
-                                break;
-                            } catch (Exception e) {
-                                logService.log(LogService.LOG_WARNING,
-                                        "Failed to hash user password", e);
-                            } finally {
-                                bundleContext.ungetService(ref);
-                            }
+                            final String hashed = hashUserPassword(userId, inputPassword, hasherType).password;
+                            final String storedPasswordOnly = storedPassword.substring(index + 1);
+                            credentialsOk[i] = hashed.equals(storedPasswordOnly);
+                        } catch (Exception e) {
+                            logService.log(LogService.LOG_ERROR,
+                                    "Failed to hash password for user: " + userId, e);
                         }
                     }
                 }
@@ -437,6 +424,43 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin, UserRe
         return new UserSessionImpl(this, user,
                 groups.isEmpty() ? null : groups.toArray(new String[groups.size()]),
                 credentials != null && credentials.length != 0);
+    }
+
+    private HashedPassword hashUserPassword(String user, String inputPassword, String type) throws Exception {
+        if (type == null) {
+            type = preferredPasswordHasher;
+        }
+        ServiceReference<PasswordHasher> ref = null;
+        try {
+            final Collection<ServiceReference<PasswordHasher>> refs =
+                    bundleContext.getServiceReferences(PasswordHasher.class,
+                            "(" + PasswordHasher.HASH_TYPE + "=" + type + ")");
+            if (!refs.isEmpty()) {
+                ref = refs.iterator().next();
+            }
+        } catch (InvalidSyntaxException e) {
+            logService.log(LogService.LOG_DEBUG,
+                    "Unable to select password hasher: " + type, e);
+        }
+        if (ref == null) {
+            logService.log(LogService.LOG_DEBUG,
+                    "Password hasher " + type + " not found: using default one (rank-based)");
+            ref = bundleContext.getServiceReference(PasswordHasher.class);
+        }
+        try {
+            final PasswordHasher hasher = bundleContext.getService(ref);
+            final String hasherType = (String) ref.getProperty(PasswordHasher.HASH_TYPE);
+            if (hasherType == null) {
+                throw new RuntimeException("Missing service property "
+                        + PasswordHasher.HASH_TYPE + " in PasswordHasher service: " + ref);
+            }
+            logService.log(LogService.LOG_INFO,
+                    "Hashing password for user " + user + " using "
+                            + hasherType);
+            return new HashedPassword(hasher.hash(user, inputPassword), hasherType);
+        } finally {
+            bundleContext.ungetService(ref);
+        }
     }
 
     public synchronized UserImpl lookupUser(String userId) {
