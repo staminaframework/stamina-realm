@@ -546,8 +546,12 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         }
 
         if (userDb.containsKey(name)) {
-            throw new IllegalArgumentException("Cannot create group: an user exists with name " + name);
+            return null;
         }
+        if (lookupGroup(name) != null) {
+            return null;
+        }
+
         final Group group = new GroupImpl(this, name, null);
         notifyUserAdminListeners(UserAdminEvent.ROLE_CREATED, group);
         return group;

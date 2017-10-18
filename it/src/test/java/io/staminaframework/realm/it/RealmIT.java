@@ -283,6 +283,18 @@ public class RealmIT {
     }
 
     @Test
+    public void testUserAdminCreateGroupWithSameUserName() {
+        final Group group = (Group) userAdmin.createRole("foo", Role.GROUP);
+        assertNull(group);
+    }
+
+    @Test
+    public void testUserAdminCreateGroupExistingName() {
+        final Group group = (Group) userAdmin.createRole("adm", Role.GROUP);
+        assertNull(group);
+    }
+
+    @Test
     public void testUserSessionAdmin() {
         assertNotNull(userSessionAdmin);
 
