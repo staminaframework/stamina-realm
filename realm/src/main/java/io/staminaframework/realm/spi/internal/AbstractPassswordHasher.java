@@ -39,6 +39,8 @@ import java.util.Base64;
 abstract class AbstractPassswordHasher implements PasswordHasher, UserAdminListener {
     @interface Config {
         boolean useSalt() default true;
+
+        boolean useSecureRandomStrong() default false;
     }
 
     private static final Base64.Encoder BASE64_ENCODER = Base64.getEncoder();
@@ -112,7 +114,11 @@ abstract class AbstractPassswordHasher implements PasswordHasher, UserAdminListe
 
     public void activate(BundleContext bundleContext, Config config) throws Exception {
         this.bundleContext = bundleContext;
-        secureRandom = SecureRandom.getInstanceStrong();
+        if (config.useSecureRandomStrong()) {
+            secureRandom = SecureRandom.getInstanceStrong();
+        } else {
+            secureRandom = new SecureRandom();
+        }
         useSalt = config.useSalt();
     }
 
