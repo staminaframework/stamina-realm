@@ -182,7 +182,25 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         // Write new user definition.
         final StringBuilder newUserDef = new StringBuilder(32);
         if (newPassword != null) {
-            newUserDef.append(newPassword);
+            final int i = newPassword.indexOf(':');
+            if (i == -1) {
+                // This is a plain text password:
+                // we must hash it to protect user security.
+                final ServiceReference<PasswordHasher> hasherRef =
+                        bundleContext.getServiceReference(PasswordHasher.class);
+                if (hasherRef != null) {
+                    logService.log(LogService.LOG_INFO, "Hashing password for user: " + userId);
+                    try {
+                        final PasswordHasher hasher = bundleContext.getService(hasherRef);
+                        final String hashedPassword = hasher.hash(userId, newPassword);
+                        newUserDef.append(hashedPassword);
+                    } finally {
+                        bundleContext.ungetService(hasherRef);
+                    }
+                }
+            } else {
+                newUserDef.append(newPassword);
+            }
         }
         newUserDef.append(",");
         boolean first = true;
@@ -341,7 +359,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
                             storedPasswordType = "plaintext";
                         } else {
                             // Extract password type.
-                            storedPasswordType = storedPassword.substring(0, i);
+                            storedPasswordType = storedPassword.substring(0, index);
                         }
 
                         // Find a hasher for this password type.
@@ -360,7 +378,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
                                 // Hash input password, and compare results.
                                 final PasswordHasher ph = bundleContext.getService(ref);
                                 final String hashed = ph.hash(userId, inputPassword);
-                                credentialsOk[i] = hashed.equals(inputPassword);
+                                credentialsOk[i] = hashed.equals(storedPassword);
                                 break;
                             } catch (Exception e) {
                                 logService.log(LogService.LOG_WARNING,
@@ -424,7 +442,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
     }
 
     public GroupImpl lookupGroup(String groupName) {
-        final Set<String> memberNames = new HashSet<>(userDb.size());
+        final Set<String> memberNames = new HashSet<>(4);
 
         for (final String userId : userDb.keySet()) {
             final String userDef = userDb.get(userId);
@@ -433,7 +451,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
                 for (int i = 1; i < tokens.length; ++i) {
                     final String group = tokens[i].trim();
                     if (group.length() != 0 && groupName.equals(group)) {
-                        memberNames.add(userDef);
+                        memberNames.add(userId);
                         break;
                     }
                 }

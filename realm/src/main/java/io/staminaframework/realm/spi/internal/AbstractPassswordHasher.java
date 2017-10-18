@@ -94,7 +94,7 @@ abstract class AbstractPassswordHasher implements PasswordHasher, UserAdminListe
         boolean saltInitialized = false;
         if (userSaltFile.exists()) {
             try (final DataInputStream in = new DataInputStream(new FileInputStream(userSaltFile))) {
-                saltInitialized = saltLength != in.read(salt);
+                saltInitialized = saltLength == in.read(salt);
             } catch (IOException e) {
                 return null;
             }

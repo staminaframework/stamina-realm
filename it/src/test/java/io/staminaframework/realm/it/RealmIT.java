@@ -45,6 +45,7 @@ import java.util.Hashtable;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.staminaframework.realm.UserCredentials.plainTextPassword;
+import static io.staminaframework.starter.it.OsgiHelper.lookupService;
 import static io.staminaframework.starter.it.StaminaOptions.staminaDistribution;
 import static org.junit.Assert.*;
 import static org.ops4j.pax.exam.CoreOptions.*;
@@ -210,6 +211,52 @@ public class RealmIT {
 
         user = userAdmin.getUser(RealmConstants.UID, "foo");
         assertNull(user.getCredentials().get(RealmConstants.PASSWORD));
+    }
+
+    @Test
+    public void testUserAdminGetGroup() {
+        final Group group = (Group) userAdmin.getRole("adm");
+        assertNotNull(group);
+        assertNotNull(group.getMembers());
+        assertEquals(1, group.getMembers().length);
+        assertEquals(Role.USER, group.getMembers()[0].getType());
+        assertEquals("foo", group.getMembers()[0].getName());
+    }
+
+    @Test
+    public void testUserAdminAddMemberToGroup() {
+        final User user = (User) userAdmin.createRole("john", Role.USER);
+        final Group group = (Group) userAdmin.getRole("adm");
+        group.addMember(user);
+
+        final Authorization auth = userAdmin.getAuthorization(user);
+        assertTrue(auth.hasRole("adm"));
+    }
+
+    @Test
+    public void testUserAdminCreateUserWithPassword() {
+        User user = (User) userAdmin.createRole("john", Role.USER);
+        user.getCredentials().put(RealmConstants.PASSWORD, "changeme");
+
+        final Group group = (Group) userAdmin.getRole("adm");
+        group.addMember(user);
+
+        user = userAdmin.getUser(RealmConstants.UID, "john");
+        assertNotEquals("changeme", user.getCredentials().get(RealmConstants.PASSWORD));
+        assertTrue(((String) user.getCredentials().get(RealmConstants.PASSWORD)).startsWith("sha256:"));
+
+        final UserSession session = userSessionAdmin.authenticate("john", "changeme");
+        assertNotNull(session);
+    }
+
+    @Test
+    public void testHashPassword() {
+        final PasswordHasher hasher = lookupService(bundleContext, PasswordHasher.class);
+        final String pwd1 = hasher.hash("john", "randompassword");
+        final String pwd2 = hasher.hash("john", "randompassword");
+        final String pwd3 = hasher.hash("john", "anotherpassword");
+        assertEquals(pwd1, pwd2);
+        assertNotEquals(pwd1, pwd3);
     }
 
     @Test
