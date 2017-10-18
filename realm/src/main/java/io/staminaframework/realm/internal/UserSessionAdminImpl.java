@@ -38,6 +38,8 @@ import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -48,6 +50,7 @@ import java.util.stream.Collectors;
 @Component(service = {UserAdmin.class, UserSessionAdmin.class},
         configurationPid = "io.staminaframework.realm")
 public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
+    private static final Pattern NAME_PATTERN = Pattern.compile("([a-z]*[A-Z]*[0-9]*_*-*)+");
     private static final Map<Integer, String> EVENT_TYPES = new HashMap<>(4);
 
     static {
@@ -537,6 +540,8 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         if (Role.USER != type && Role.GROUP != type) {
             throw new IllegalArgumentException("Unsupported role type: " + type);
         }
+        checkRoleName(name);
+
         if (Role.USER == type) {
             final Role user = createUser(name);
             if (user != null) {
@@ -559,11 +564,13 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
 
     @Override
     public synchronized boolean removeRole(String name) {
+        checkRoleName(name);
         return removeUser(name);
     }
 
     @Override
     public synchronized Role getRole(String name) {
+        checkRoleName(name);
         final User user = lookupUser(name);
         return user == null ? lookupGroup(name) : user;
     }
@@ -589,5 +596,12 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
     @Override
     public synchronized Authorization getAuthorization(User user) {
         return authenticate(user.getName());
+    }
+
+    private void checkRoleName(String name) {
+        final Matcher nameMatcher = NAME_PATTERN.matcher(name);
+        if (!nameMatcher.matches() && !name.equals(Role.USER_ANYONE)) {
+            throw new IllegalArgumentException("Invalid name: " + name);
+        }
     }
 }

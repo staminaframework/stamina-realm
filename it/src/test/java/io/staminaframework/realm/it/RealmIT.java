@@ -294,6 +294,16 @@ public class RealmIT {
         assertNull(group);
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testUserAdminCreateUserWithSpaces() {
+        userAdmin.createRole("foo bar", Role.USER);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testUserAdminCreateUserInvalidChar() {
+        userAdmin.createRole("john,", Role.USER);
+    }
+
     @Test
     public void testUserSessionAdmin() {
         assertNotNull(userSessionAdmin);
