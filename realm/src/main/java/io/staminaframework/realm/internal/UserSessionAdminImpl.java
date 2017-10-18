@@ -136,12 +136,12 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         serviceRef = null;
     }
 
-    public void reload() throws IOException {
+    public synchronized void reload() throws IOException {
         logService.log(LogService.LOG_INFO, "Reloading user realm");
         userDb.load(userRealmUrl);
     }
 
-    public User createUser(String name) {
+    public synchronized User createUser(String name) {
         if (Role.USER_ANYONE.equals(name)) {
             return null;
         }
@@ -160,7 +160,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         return user;
     }
 
-    public void updateUser(String userId, Dictionary<String, Object> credentials) {
+    public synchronized void updateUser(String userId, Dictionary<String, Object> credentials) {
         final String currentDef = userDb.getProperty(userId);
         if (currentDef == null) {
             // This user was removed before its credentials were updated.
@@ -225,7 +225,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         }
     }
 
-    public void addGroupToUser(String userId, String group) {
+    public synchronized void addGroupToUser(String userId, String group) {
         if (group == null) {
             return;
         }
@@ -279,7 +279,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         }
     }
 
-    public void removeGroupFromUser(String userId, String group) {
+    public synchronized void removeGroupFromUser(String userId, String group) {
         if (group == null) {
             return;
         }
@@ -334,7 +334,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
     }
 
     @Override
-    public UserSession authenticate(String userId, Object... credentials) {
+    public synchronized UserSession authenticate(String userId, Object... credentials) {
         final UserImpl user = lookupUser(userId);
         if (user == null) {
             logService.log(LogService.LOG_DEBUG, "User not found: " + userId);
@@ -416,7 +416,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
                 credentials != null && credentials.length != 0);
     }
 
-    public UserImpl lookupUser(String userId) {
+    public synchronized UserImpl lookupUser(String userId) {
         if (userId == null || Role.USER_ANYONE.equals(userId)) {
             return new UserImpl(this, Role.USER_ANYONE, null);
         }
@@ -441,7 +441,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         return null;
     }
 
-    public GroupImpl lookupGroup(String groupName) {
+    public synchronized GroupImpl lookupGroup(String groupName) {
         final Set<String> memberNames = new HashSet<>(4);
 
         for (final String userId : userDb.keySet()) {
@@ -465,7 +465,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         return new GroupImpl(this, groupName, members);
     }
 
-    public boolean removeUser(String userId) {
+    public synchronized boolean removeUser(String userId) {
         if (userId == null || Role.USER_ANYONE.equals(userId)) {
             return false;
         }
@@ -533,7 +533,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
     }
 
     @Override
-    public Role createRole(String name, int type) {
+    public synchronized Role createRole(String name, int type) {
         if (Role.USER != type && Role.GROUP != type) {
             throw new IllegalArgumentException("Unsupported role type: " + type);
         }
@@ -554,18 +554,18 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
     }
 
     @Override
-    public boolean removeRole(String name) {
+    public synchronized boolean removeRole(String name) {
         return removeUser(name);
     }
 
     @Override
-    public Role getRole(String name) {
+    public synchronized Role getRole(String name) {
         final User user = lookupUser(name);
         return user == null ? lookupGroup(name) : user;
     }
 
     @Override
-    public Role[] getRoles(String filter) throws InvalidSyntaxException {
+    public synchronized Role[] getRoles(String filter) throws InvalidSyntaxException {
         if (filter != null) {
             throw new UnsupportedOperationException("Filtering is not supported");
         }
@@ -575,7 +575,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
     }
 
     @Override
-    public User getUser(String key, String value) {
+    public synchronized User getUser(String key, String value) {
         if (RealmConstants.UID.equals(key)) {
             return (User) getRole(value);
         }
@@ -583,7 +583,7 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
     }
 
     @Override
-    public Authorization getAuthorization(User user) {
+    public synchronized Authorization getAuthorization(User user) {
         return authenticate(user.getName());
     }
 }

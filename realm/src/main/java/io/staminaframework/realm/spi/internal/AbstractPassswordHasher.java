@@ -27,6 +27,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Abstract {@link PasswordHasher} implementation.
@@ -44,6 +46,7 @@ abstract class AbstractPassswordHasher implements PasswordHasher, UserAdminListe
     }
 
     private static final Base64.Encoder BASE64_ENCODER = Base64.getEncoder();
+    private final ReadWriteLock rwl = new ReentrantReadWriteLock();
     private final String prefix;
     private final String algorithm;
     private final int saltLength;
@@ -95,18 +98,25 @@ abstract class AbstractPassswordHasher implements PasswordHasher, UserAdminListe
         final byte[] salt = new byte[saltLength];
         boolean saltInitialized = false;
         if (userSaltFile.exists()) {
+            rwl.readLock().lock();
             try (final DataInputStream in = new DataInputStream(new FileInputStream(userSaltFile))) {
                 saltInitialized = saltLength == in.read(salt);
             } catch (IOException e) {
                 return null;
+            } finally {
+                rwl.readLock().unlock();
             }
         }
+
         if (!saltInitialized) {
             secureRandom.nextBytes(salt);
+            rwl.writeLock().lock();
             try (final DataOutputStream out = new DataOutputStream(new FileOutputStream(userSaltFile))) {
                 out.write(salt);
             } catch (IOException e) {
                 return null;
+            } finally {
+                rwl.writeLock().unlock();
             }
         }
         return salt;

@@ -19,6 +19,7 @@ package io.staminaframework.realm.internal;
 import io.staminaframework.realm.UserSession;
 
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * {@link UserSession} implementation.
@@ -28,7 +29,7 @@ import java.util.Arrays;
 final class UserSessionImpl implements UserSession {
     private final UserSessionAdminImpl usa;
     private final UserImpl user;
-    private boolean valid = true;
+    private final AtomicBoolean valid = new AtomicBoolean(true);
     private final boolean authenticated;
     private final String[] groups;
 
@@ -42,8 +43,8 @@ final class UserSessionImpl implements UserSession {
 
     @Override
     public void invalid() {
-        final boolean stateChanged = valid;
-        valid = false;
+        final boolean stateChanged = valid.get();
+        valid.set(false);
 
         if (stateChanged) {
             usa.notifyUserAdminListeners(UserSession.ROLE_LOGGED_OUT, user);
@@ -52,7 +53,7 @@ final class UserSessionImpl implements UserSession {
 
     @Override
     public boolean isValid() {
-        return valid;
+        return valid.get();
     }
 
     @Override
@@ -99,7 +100,7 @@ final class UserSessionImpl implements UserSession {
     @Override
     public int hashCode() {
         int result = user.hashCode();
-        result = 31 * result + (valid ? 1 : 0);
+        result = 31 * result + (valid.get() ? 1 : 0);
         result = 31 * result + (authenticated ? 1 : 0);
         result = 31 * result + Arrays.hashCode(groups);
         return result;
