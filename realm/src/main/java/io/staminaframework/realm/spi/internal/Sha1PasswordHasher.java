@@ -18,6 +18,7 @@ package io.staminaframework.realm.spi.internal;
 
 import io.staminaframework.realm.spi.PasswordHasher;
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.Constants;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Deactivate;
@@ -29,7 +30,7 @@ import org.osgi.service.useradmin.UserAdminListener;
  * @author Stamina Framework developers
  */
 @Component(service = {PasswordHasher.class, UserAdminListener.class},
-        property = PasswordHasher.HASH_TYPE + "=sha1",
+        property = {PasswordHasher.HASH_TYPE + "=sha1", Constants.SERVICE_RANKING + ":Integer=160"},
         configurationPid = "io.staminaframework.realm")
 public class Sha1PasswordHasher extends AbstractPassswordHasher {
     public Sha1PasswordHasher() {

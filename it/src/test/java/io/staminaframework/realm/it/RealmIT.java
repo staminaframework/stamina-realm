@@ -19,6 +19,7 @@ package io.staminaframework.realm.it;
 import io.staminaframework.realm.RealmConstants;
 import io.staminaframework.realm.UserSession;
 import io.staminaframework.realm.UserSessionAdmin;
+import io.staminaframework.realm.spi.PasswordHasher;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -193,6 +194,12 @@ public class RealmIT {
         assertNotNull(group);
         assertEquals("managers", group.getName());
         assertEquals(Role.GROUP, group.getType());
+    }
+
+    @Test
+    public void testPasswordHasherServiceRanking() {
+        final ServiceReference<PasswordHasher> ref = bundleContext.getServiceReference(PasswordHasher.class);
+        assertEquals("sha256", ref.getProperty(PasswordHasher.HASH_TYPE));
     }
 
     @Test
