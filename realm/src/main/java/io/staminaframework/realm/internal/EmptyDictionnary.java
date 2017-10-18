@@ -24,6 +24,19 @@ class EmptyDictionnary<K, V> extends Dictionary<K, V> {
     public static Dictionary INSTANCE = new EmptyDictionnary();
 
     @Override
+    public int hashCode() {
+        return 0;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        return obj instanceof EmptyDictionnary;
+    }
+
+    @Override
     public int size() {
         return 0;
     }

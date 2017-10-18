@@ -60,4 +60,19 @@ class UnmodifiableDictionary<K, V> extends Dictionary<K, V> {
     public V remove(Object key) {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        UnmodifiableDictionary<?, ?> that = (UnmodifiableDictionary<?, ?>) o;
+
+        return delegate.equals(that.delegate);
+    }
+
+    @Override
+    public int hashCode() {
+        return delegate.hashCode();
+    }
 }

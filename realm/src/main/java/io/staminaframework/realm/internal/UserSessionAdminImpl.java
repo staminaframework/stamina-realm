@@ -33,11 +33,11 @@ import org.osgi.service.useradmin.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -49,7 +49,7 @@ import java.util.stream.Collectors;
  */
 @Component(service = {UserAdmin.class, UserSessionAdmin.class},
         configurationPid = "io.staminaframework.realm")
-public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
+public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin, UserRealmFileMonitor.Listener {
     private static final Pattern NAME_PATTERN = Pattern.compile("([a-z]*[A-Z]*[0-9]*_*-*)+");
     private static final Map<Integer, String> EVENT_TYPES = new HashMap<>(4);
 
@@ -68,11 +68,18 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
          * Path to user realm definitions file.
          */
         String userRealm();
+
+        /**
+         * Set to <code>true</code> to monitor user realm file.
+         * When the file is updated, user realm is reloaded.
+         */
+        boolean monitorUserRealm() default true;
     }
 
     private Properties userDb;
-    private URL userRealmUrl;
+    private File userRealmFile;
     private ThreadPoolExecutor eventDispatcher;
+    private UserRealmFileMonitor userRealmFileMonitor;
 
     private BundleContext bundleContext;
     private ServiceReference<?> serviceRef;
@@ -94,7 +101,6 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
 
         this.bundleContext = bundleContext;
         this.serviceRef = componentContext.getServiceReference();
-        final File userRealmFile;
         if (config.userRealm() == null || config.userRealm().length() == 0) {
             logService.log(LogService.LOG_WARNING, "No user realm file set: using default");
 
@@ -119,10 +125,21 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         logService.log(LogService.LOG_INFO,
                 "Loading user realm from file: " + userRealmFile);
         userDb = new Properties(userRealmFile, bundleContext);
+
+        userRealmFileMonitor = new UserRealmFileMonitor(userRealmFile.toPath(), this, logService);
+        if (config.monitorUserRealm()) {
+            userRealmFileMonitor.init();
+        }
     }
 
     @Deactivate
-    public void deactivate() {
+    public void deactivate(Config config) {
+        if (userRealmFileMonitor != null) {
+            if (config.monitorUserRealm()) {
+                userRealmFileMonitor.dispose();
+            }
+            userRealmFileMonitor = null;
+        }
         if (eventDispatcher != null) {
             eventDispatcher.shutdown();
             try {
@@ -134,14 +151,9 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
 
         // Clear references to help GC.
         userDb = null;
-        userRealmUrl = null;
+        userRealmFile = null;
         bundleContext = null;
         serviceRef = null;
-    }
-
-    public synchronized void reload() throws IOException {
-        logService.log(LogService.LOG_INFO, "Reloading user realm");
-        userDb.load(userRealmUrl);
     }
 
     public synchronized User createUser(String name) {
@@ -154,12 +166,14 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         final User user = new UserImpl(this, name, null);
         userDb.put(name, ",");
         logService.log(LogService.LOG_INFO, "Creating user: " + name);
-        try {
-            userDb.save();
-        } catch (IOException e) {
-            logService.log(LogService.LOG_ERROR,
-                    "Cannot write to user realm file", e);
-        }
+        userRealmFileMonitor.updateFileWithoutNotifying(() -> {
+            try {
+                userDb.save();
+            } catch (IOException e) {
+                logService.log(LogService.LOG_ERROR,
+                        "Cannot write to user realm file", e);
+            }
+        });
         return user;
     }
 
@@ -219,13 +233,15 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         }
         userDb.put(userId, newUserDef.toString());
         logService.log(LogService.LOG_INFO, "Updating user: " + userId);
-        try {
-            userDb.save();
-            notifyUserAdminListeners(UserAdminEvent.ROLE_CHANGED, lookupUser(userId));
-        } catch (IOException e) {
-            logService.log(LogService.LOG_ERROR,
-                    "Cannot write to user realm file", e);
-        }
+        userRealmFileMonitor.updateFileWithoutNotifying(() -> {
+            try {
+                userDb.save();
+                notifyUserAdminListeners(UserAdminEvent.ROLE_CHANGED, lookupUser(userId));
+            } catch (IOException e) {
+                logService.log(LogService.LOG_ERROR,
+                        "Cannot write to user realm file", e);
+            }
+        });
     }
 
     public synchronized void addGroupToUser(String userId, String group) {
@@ -273,13 +289,15 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         }
         userDb.put(userId, newUserDef.toString());
         logService.log(LogService.LOG_INFO, "Updating user: " + userId);
-        try {
-            userDb.save();
-            notifyUserAdminListeners(UserAdminEvent.ROLE_CHANGED, lookupUser(userId));
-        } catch (IOException e) {
-            logService.log(LogService.LOG_ERROR,
-                    "Cannot write to user realm file", e);
-        }
+        userRealmFileMonitor.updateFileWithoutNotifying(() -> {
+            try {
+                userDb.save();
+                notifyUserAdminListeners(UserAdminEvent.ROLE_CHANGED, lookupUser(userId));
+            } catch (IOException e) {
+                logService.log(LogService.LOG_ERROR,
+                        "Cannot write to user realm file", e);
+            }
+        });
     }
 
     public synchronized void removeGroupFromUser(String userId, String group) {
@@ -327,13 +345,15 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         }
         userDb.put(userId, newUserDef.toString());
         logService.log(LogService.LOG_INFO, "Updating user: " + userId);
-        try {
-            userDb.save();
-            notifyUserAdminListeners(UserAdminEvent.ROLE_CHANGED, lookupUser(userId));
-        } catch (IOException e) {
-            logService.log(LogService.LOG_ERROR,
-                    "Cannot write to user realm file", e);
-        }
+        userRealmFileMonitor.updateFileWithoutNotifying(() -> {
+            try {
+                userDb.save();
+                notifyUserAdminListeners(UserAdminEvent.ROLE_CHANGED, lookupUser(userId));
+            } catch (IOException e) {
+                logService.log(LogService.LOG_ERROR,
+                        "Cannot write to user realm file", e);
+            }
+        });
     }
 
     @Override
@@ -477,13 +497,15 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         if (removed) {
             logService.log(LogService.LOG_INFO, "Removing user: " + userId);
             userDb.remove(userId);
-            try {
-                userDb.save();
-            } catch (IOException e) {
-                logService.log(LogService.LOG_ERROR,
-                        "Cannot write to user realm file", e);
-            }
-            notifyUserAdminListeners(UserAdminEvent.ROLE_REMOVED, user);
+            userRealmFileMonitor.updateFileWithoutNotifying(() -> {
+                try {
+                    userDb.save();
+                    notifyUserAdminListeners(UserAdminEvent.ROLE_REMOVED, user);
+                } catch (IOException e) {
+                    logService.log(LogService.LOG_ERROR,
+                            "Cannot write to user realm file", e);
+                }
+            });
         }
         return removed;
     }
@@ -603,5 +625,45 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin {
         if (!nameMatcher.matches() && !name.equals(Role.USER_ANYONE)) {
             throw new IllegalArgumentException("Invalid name: " + name);
         }
+    }
+
+    @Override
+    public synchronized void userRealmFileUpdated() throws Exception {
+        final Map<String, User> usersBeforeUpdate =
+                userDb.keySet().stream()
+                        .map(userId -> lookupUser(userId))
+                        .collect(Collectors.toMap(User::getName, Function.identity()));
+
+        if (userRealmFile.exists()) {
+            logService.log(LogService.LOG_INFO, "Reloading user realm");
+            userDb.clear();
+            userDb.load(userRealmFile);
+        } else {
+            logService.log(LogService.LOG_WARNING,
+                    "User realm file deleted: clearing configuration");
+            userDb.clear();
+        }
+
+        final Map<String, User> usersAfterUpdate =
+                userDb.keySet().stream()
+                        .map(userId -> lookupUser(userId))
+                        .collect(Collectors.toMap(User::getName, Function.identity()));
+
+        // Notify listeners with new users.
+        usersAfterUpdate.entrySet().stream()
+                .filter(e -> !usersBeforeUpdate.containsKey(e.getKey()))
+                .map(e -> e.getValue())
+                .forEach(u -> notifyUserAdminListeners(UserAdminEvent.ROLE_CREATED, u));
+        // Notify listeners with removed users.
+        usersBeforeUpdate.entrySet().stream()
+                .filter(e -> !usersAfterUpdate.containsKey(e.getKey()))
+                .map(e -> e.getValue())
+                .forEach(u -> notifyUserAdminListeners(UserAdminEvent.ROLE_REMOVED, u));
+        // Notify listeners with changed users.
+        usersAfterUpdate.entrySet().stream()
+                .filter(e -> usersBeforeUpdate.containsKey(e.getKey()))
+                .filter(e -> !e.getValue().equals(usersBeforeUpdate.get(e.getKey())))
+                .map(e -> e.getValue())
+                .forEach(u -> notifyUserAdminListeners(UserAdminEvent.ROLE_CHANGED, u));
     }
 }

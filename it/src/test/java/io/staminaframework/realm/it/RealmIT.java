@@ -37,6 +37,8 @@ import org.osgi.service.useradmin.*;
 
 import javax.inject.Inject;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,6 +46,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Dictionary;
 import java.util.Hashtable;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.staminaframework.realm.UserCredentials.plainTextPassword;
@@ -77,7 +80,7 @@ public class RealmIT {
     @AfterClass
     public static void dispose() throws IOException {
         final Path path = Paths.get(System.getProperty("stamina.realm.file"));
-        Files.delete(path);
+        path.toFile().deleteOnExit();
     }
 
     @Configuration
@@ -319,6 +322,39 @@ public class RealmIT {
     @Test(expected = IllegalArgumentException.class)
     public void testUserAdminCreateUserInvalidChar() {
         userAdmin.createRole("john,", Role.USER);
+    }
+
+    @Test
+    public void testUserAdminFileUpdate() throws IOException, InterruptedException {
+        final File realmFile = new File(System.getProperty("stamina.realm.file"));
+        assertTrue(realmFile.exists());
+        final Properties userDb = new Properties();
+        try (final FileInputStream in = new FileInputStream(realmFile)) {
+            userDb.load(in);
+        }
+
+        userDb.put("john", "changeme");
+        try (final FileOutputStream out = new FileOutputStream(realmFile)) {
+            userDb.store(out, null);
+        }
+        Thread.sleep(1000);
+        assertNotNull(userAdmin.getRole("john"));
+
+        userDb.remove("john");
+        try (final FileOutputStream out = new FileOutputStream(realmFile)) {
+            userDb.store(out, null);
+        }
+        Thread.sleep(1000);
+        assertNull(userAdmin.getRole("john"));
+
+        userDb.put("foo", "barbar");
+        try (final FileOutputStream out = new FileOutputStream(realmFile)) {
+            userDb.store(out, null);
+        }
+        Thread.sleep(1000);
+        assertEquals("barbar",
+                userAdmin.getUser(RealmConstants.UID, "foo")
+                        .getCredentials().get(RealmConstants.PASSWORD));
     }
 
     @Test
