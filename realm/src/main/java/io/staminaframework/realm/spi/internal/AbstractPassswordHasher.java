@@ -16,9 +16,9 @@
 
 package io.staminaframework.realm.spi.internal;
 
-import io.staminaframework.realm.UserSession;
 import io.staminaframework.realm.spi.PasswordHasher;
 import org.osgi.framework.BundleContext;
+import org.osgi.service.useradmin.Role;
 import org.osgi.service.useradmin.UserAdminEvent;
 import org.osgi.service.useradmin.UserAdminListener;
 
@@ -139,7 +139,7 @@ abstract class AbstractPassswordHasher implements PasswordHasher, UserAdminListe
 
     @Override
     public void roleChanged(UserAdminEvent event) {
-        if (UserSession.ROLE_LOGGED_OUT == event.getType()) {
+        if (UserAdminEvent.ROLE_REMOVED == event.getType() && event.getRole().getType() == Role.USER) {
             final File userSaltFile = getUserSaltFile(event.getRole().getName());
             userSaltFile.delete();
         }

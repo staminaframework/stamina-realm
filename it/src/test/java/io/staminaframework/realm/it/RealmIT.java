@@ -27,6 +27,7 @@ import org.junit.runner.RunWith;
 import org.ops4j.pax.exam.Configuration;
 import org.ops4j.pax.exam.Option;
 import org.ops4j.pax.exam.junit.PaxExam;
+import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceReference;
 import org.osgi.service.event.Event;
@@ -35,6 +36,7 @@ import org.osgi.service.event.EventHandler;
 import org.osgi.service.useradmin.*;
 
 import javax.inject.Inject;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,6 +47,7 @@ import java.util.Hashtable;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.staminaframework.realm.UserCredentials.plainTextPassword;
+import static io.staminaframework.starter.it.OsgiHelper.lookupBundle;
 import static io.staminaframework.starter.it.OsgiHelper.lookupService;
 import static io.staminaframework.starter.it.StaminaOptions.staminaDistribution;
 import static org.junit.Assert.*;
@@ -247,6 +250,20 @@ public class RealmIT {
 
         final UserSession session = userSessionAdmin.authenticate("john", "changeme");
         assertNotNull(session);
+    }
+
+    @Test
+    public void testUserAdminRemoveSaltWhenRemovingUser() throws InterruptedException {
+        final User user = (User) userAdmin.createRole("john", Role.USER);
+        user.getCredentials().put(RealmConstants.PASSWORD, plainTextPassword("changeme"));
+
+        final Bundle realmBundle = lookupBundle(bundleContext, "io.staminaframework.realm");
+        final File saltFile = realmBundle.getDataFile("salt-sha256-john.dat");
+        assertTrue(saltFile.exists());
+
+        assertTrue(userAdmin.removeRole("john"));
+        Thread.sleep(500);
+        assertFalse(saltFile.exists());
     }
 
     @Test
