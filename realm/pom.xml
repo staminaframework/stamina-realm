@@ -27,6 +27,7 @@
     </parent>
     <name>Stamina Realm</name>
     <artifactId>io.staminaframework.realm</artifactId>
+    <url>http://staminaframework.io/${project.artifactId}</url>
 
     <dependencies>
         <dependency>

@@ -1,1 +1,2 @@
 Private-Package: picocli.*
+-include: ${project.basedir}/../bnd.bnd
