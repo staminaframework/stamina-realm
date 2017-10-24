@@ -375,6 +375,19 @@ public class RealmIT {
     }
 
     @Test
+    public void testUserAdminUpdatePassword() {
+        User user = (User) userAdmin.createRole("john", Role.USER);
+        user.getCredentials().put(RealmConstants.PASSWORD, plainTextPassword("changeme"));
+        UserSession session = userSessionAdmin.authenticate("john", plainTextPassword("changeme"));
+        assertTrue(session.isAuthenticated());
+
+        user = (User) userAdmin.getUser(RealmConstants.UID, "john");
+        user.getCredentials().put(RealmConstants.PASSWORD, plainTextPassword("changeme"));
+        session = userSessionAdmin.authenticate("john", plainTextPassword("changeme"));
+        assertTrue(session.isAuthenticated());
+    }
+
+    @Test
     public void testUserSessionAdmin() {
         assertNotNull(userSessionAdmin);
 

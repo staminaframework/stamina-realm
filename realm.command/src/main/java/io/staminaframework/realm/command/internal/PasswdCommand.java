@@ -22,30 +22,24 @@ import io.staminaframework.realm.RealmConstants;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.log.LogService;
-import org.osgi.service.useradmin.Group;
-import org.osgi.service.useradmin.Role;
 import org.osgi.service.useradmin.User;
 import org.osgi.service.useradmin.UserAdmin;
 import picocli.CommandLine;
 
 import java.io.PrintStream;
-import java.util.Collections;
-import java.util.List;
 
 import static io.staminaframework.realm.UserCredentials.plainTextPassword;
 
 /**
- * {@link Command} for adding an user.
+ * {@link Command} for setting user password.
  *
  * @author Stamina Framework developers
  */
-@Component(service = Command.class, property = CommandConstants.COMMAND + "=realm:user-add")
-@CommandLine.Command(name = "realm:user-add", description = "Add an user to the configuration.")
-public class UserAddCommand implements Command {
+@Component(service = Command.class, property = CommandConstants.COMMAND + "=realm:passwd")
+@CommandLine.Command(name = "realm:passwd", description = "Set user password.")
+public class PasswdCommand implements Command {
     @CommandLine.Parameters(index = "0", paramLabel = "userid", description = "User identifier")
     private String userId;
-    @CommandLine.Option(description = "Set users groups", names = {"-g", "--groups"})
-    private List<String> groups = Collections.emptyList();
     @CommandLine.Option(names = {"-h", "--help"}, usageHelp = true, description = "Show command usage")
     private boolean showHelp;
 
@@ -74,47 +68,22 @@ public class UserAddCommand implements Command {
             return false;
         }
 
-        // Check groups.
-        for (final String groupName : groups) {
-            Role role = userAdmin.getRole(groupName);
-            if (role != null && role.getType() != Role.GROUP) {
-                throw new RuntimeException("Invalid group: " + groupName);
-            }
-        }
-
-        if (userAdmin.getUser(RealmConstants.UID, userId) != null) {
-            throw new RuntimeException("User already exists: " + userId);
+        final User user = userAdmin.getUser(RealmConstants.UID, userId);
+        if (user == null) {
+            throw new RuntimeException("User not found: " + userId);
         }
 
         // Read user password.
         final char[] passwd = System.console().readPassword("Enter user password: ");
-
-        context.out().println("Creating user: " + userId);
-        final User user = (User) userAdmin.createRole(userId, Role.USER);
-        if (user == null) {
-            throw new RuntimeException("Cannot create user: " + userId);
-        }
-        if (passwd != null && passwd.length != 0) {
+        if (passwd == null || passwd.length == 0) {
+            context.err().println("Operation canceled.");
+        } else {
+            // Updating user password.
+            logService.log(LogService.LOG_INFO, "Updating user password: " + userId);
             user.getCredentials().put(RealmConstants.PASSWORD, plainTextPassword(new String(passwd)));
-        }
 
-        // Link user to groups.
-        for (final String groupName : groups) {
-            final Role role = userAdmin.getRole(groupName);
-            final Group group;
-            if (role == null) {
-                context.out().println("Creating group: " + groupName);
-                group = (Group) userAdmin.createRole(groupName, Role.GROUP);
-            } else if (role.getType() == Role.GROUP) {
-                group = (Group) role;
-            } else {
-                // This should not happen, since we just made checks about groups.
-                continue;
-            }
-            group.addMember(user);
+            context.out().println("User password updated.");
         }
-
-        context.out().println("User successfully created");
         return false;
     }
 }

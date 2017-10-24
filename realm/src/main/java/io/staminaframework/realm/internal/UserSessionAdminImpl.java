@@ -219,12 +219,18 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin, UserRe
         // Write new user definition.
         final StringBuilder newUserDef = new StringBuilder(32);
         if (newPassword != null) {
-            logService.log(LogService.LOG_INFO, "Hashing password for user: " + userId);
-            try {
-                final HashedPassword hp = hashUserPassword(userId, newPassword, null);
-                newUserDef.append(hp.hasher).append(':').append(hp.password);
-            } catch (Exception e) {
-                logService.log(LogService.LOG_ERROR, "Failed to hash password for user: " + userId, e);
+            final int i = newPassword.indexOf(':');
+            if (i == -1) {
+                // This password requires hashing.
+                try {
+                    final HashedPassword hp = hashUserPassword(userId, newPassword, null);
+                    newUserDef.append(hp.hasher).append(':').append(hp.password);
+                } catch (Exception e) {
+                    logService.log(LogService.LOG_ERROR, "Failed to hash password for user: " + userId, e);
+                }
+            } else {
+                // Password already hashed: take it as is.
+                newUserDef.append(newPassword);
             }
         }
         newUserDef.append(",");
