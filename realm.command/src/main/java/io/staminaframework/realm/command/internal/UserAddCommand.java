@@ -58,18 +58,18 @@ public class UserAddCommand implements Command {
     }
 
     @Override
-    public void execute(Context context) throws Exception {
+    public boolean execute(Context context) throws Exception {
         try {
             CommandLine.populateCommand(this, context.arguments());
         } catch (CommandLine.ParameterException e) {
             logService.log(LogService.LOG_DEBUG, "Failed to parse command-line arguments", e);
             help(context.out());
-            return;
+            return false;
         }
 
         if (showHelp) {
             help(context.out());
-            return;
+            return false;
         }
 
         // Check groups.
@@ -113,5 +113,6 @@ public class UserAddCommand implements Command {
         }
 
         context.out().println("User successfully created");
+        return false;
     }
 }
