@@ -20,8 +20,10 @@ import io.staminaframework.realm.RealmConstants;
 import io.staminaframework.realm.UserSession;
 import io.staminaframework.realm.UserSessionAdmin;
 import io.staminaframework.realm.spi.PasswordHasher;
+import org.apache.felix.utils.filter.FilterImpl;
 import org.apache.felix.utils.properties.Properties;
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.Filter;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
 import org.osgi.service.component.ComponentContext;
@@ -623,11 +625,22 @@ public class UserSessionAdminImpl implements UserSessionAdmin, UserAdmin, UserRe
 
     @Override
     public synchronized Role[] getRoles(String filter) throws InvalidSyntaxException {
-        if (filter != null) {
-            throw new UnsupportedOperationException("Filtering is not supported");
+        final Filter f;
+        if (filter == null) {
+            f = null;
+        } else {
+            f = FilterImpl.newInstance(filter);
         }
 
-        final List<Role> users = userDb.keySet().stream().map(userId -> lookupUser(userId)).collect(Collectors.toList());
+        final Set<String> userIds = userDb.keySet();
+        final List<Role> users = new ArrayList<>(4);
+        for (final String userId : userIds) {
+            final Role user = lookupUser(userId);
+            if (f == null || f.match(user.getProperties())) {
+                users.add(user);
+            }
+        }
+
         return users.toArray(new Role[users.size()]);
     }
 

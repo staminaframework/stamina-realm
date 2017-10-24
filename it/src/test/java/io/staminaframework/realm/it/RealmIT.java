@@ -29,6 +29,7 @@ import org.ops4j.pax.exam.Option;
 import org.ops4j.pax.exam.junit.PaxExam;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
 import org.osgi.service.event.Event;
 import org.osgi.service.event.EventConstants;
@@ -44,6 +45,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.Properties;
@@ -356,6 +358,20 @@ public class RealmIT {
         assertEquals("barbar",
                 userAdmin.getUser(RealmConstants.UID, "foo")
                         .getCredentials().get(RealmConstants.PASSWORD));
+    }
+
+    @Test
+    public void testUserAdminGetRoles() throws InvalidSyntaxException {
+        userAdmin.createRole("john", Role.USER);
+
+        Role[] roles = userAdmin.getRoles(null);
+        assertEquals(2, roles.length);
+        assertTrue(Arrays.stream(roles).anyMatch(r -> r.getName().equals("foo")));
+        assertTrue(Arrays.stream(roles).anyMatch(r -> r.getName().equals("john")));
+
+        roles = userAdmin.getRoles("(" + RealmConstants.UID + "=foo)");
+        assertEquals(1, roles.length);
+        assertTrue(Arrays.stream(roles).anyMatch(r -> r.getName().equals("foo")));
     }
 
     @Test
