@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.staminaframework.realm.spi.internal;
+package io.staminaframework.realm.rng.internal;
 
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceRegistration;

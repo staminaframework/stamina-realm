@@ -106,6 +106,7 @@ public class RealmIT {
                         .asOption(),
                 systemProperty("stamina.realm.file").value(realmPath.toFile().getPath()),
                 staminaDistribution(),
+                mavenBundle("io.staminaframework.realm", "io.staminaframework.realm.rng").versionAsInProject(),
                 mavenBundle("io.staminaframework.realm", "io.staminaframework.realm").versionAsInProject()
         );
     }

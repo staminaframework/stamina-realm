@@ -162,6 +162,7 @@
     <modules>
         <module>realm</module>
         <module>realm.command</module>
+        <module>realm.rng</module>
         <module>addon</module>
         <module>it</module>
     </modules>

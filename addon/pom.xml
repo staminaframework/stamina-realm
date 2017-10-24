@@ -34,6 +34,11 @@
     <dependencies>
         <dependency>
             <groupId>io.staminaframework.realm</groupId>
+            <artifactId>io.staminaframework.realm.rng</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.staminaframework.realm</groupId>
             <artifactId>io.staminaframework.realm</artifactId>
             <version>${project.version}</version>
         </dependency>
