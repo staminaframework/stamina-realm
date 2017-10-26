@@ -34,6 +34,7 @@
             <groupId>io.staminaframework</groupId>
             <artifactId>io.staminaframework.starter</artifactId>
             <type>pom</type>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
