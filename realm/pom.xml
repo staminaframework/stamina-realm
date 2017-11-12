@@ -31,8 +31,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.staminaframework</groupId>
-            <artifactId>io.staminaframework.starter</artifactId>
+            <groupId>io.staminaframework.runtime</groupId>
+            <artifactId>io.staminaframework.runtime.starter</artifactId>
             <type>pom</type>
             <scope>provided</scope>
         </dependency>

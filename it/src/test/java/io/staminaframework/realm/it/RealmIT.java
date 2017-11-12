@@ -52,9 +52,9 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.staminaframework.realm.UserCredentials.plainTextPassword;
-import static io.staminaframework.starter.it.OsgiHelper.lookupBundle;
-import static io.staminaframework.starter.it.OsgiHelper.lookupService;
-import static io.staminaframework.starter.it.StaminaOptions.staminaDistribution;
+import static io.staminaframework.runtime.starter.it.OsgiHelper.lookupBundle;
+import static io.staminaframework.runtime.starter.it.OsgiHelper.lookupService;
+import static io.staminaframework.runtime.starter.it.StaminaOptions.staminaDistribution;
 import static org.junit.Assert.*;
 import static org.ops4j.pax.exam.CoreOptions.*;
 import static org.ops4j.pax.exam.cm.ConfigurationAdminOptions.newConfiguration;

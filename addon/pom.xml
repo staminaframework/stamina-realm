@@ -31,6 +31,11 @@
     <packaging>pom</packaging>
     <url>http://staminaframework.io/stamina-realm</url>
 
+    <description>
+        Stamina Realm enables user authentication
+        by providing an implementation of OSGi User Admin service.
+    </description>
+
     <dependencies>
         <dependency>
             <groupId>io.staminaframework.realm</groupId>

@@ -16,8 +16,8 @@
 
 package io.staminaframework.realm.command.internal;
 
-import io.staminaframework.command.Command;
-import io.staminaframework.command.CommandConstants;
+import io.staminaframework.runtime.command.Command;
+import io.staminaframework.runtime.command.CommandConstants;
 import io.staminaframework.realm.RealmConstants;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.Reference;
