@@ -106,6 +106,13 @@
         </pluginManagement>
     </build>
 
+    <repositories>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </repository>
+    </repositories>
+
     <modules>
         <module>realm</module>
         <module>realm.command</module>
