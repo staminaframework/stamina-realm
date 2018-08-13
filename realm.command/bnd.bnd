@@ -1,2 +1,3 @@
+Import-Package: !groovy.*, !org.codehaus.groovy.*, *
 Private-Package: picocli.*
 -include: ${project.basedir}/../bnd.bnd

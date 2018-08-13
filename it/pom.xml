@@ -70,7 +70,7 @@
         <dependency>
             <groupId>io.staminaframework.runtime</groupId>
             <artifactId>io.staminaframework.runtime.starter.it</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
 
